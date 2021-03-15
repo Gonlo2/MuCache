@@ -66,8 +66,9 @@ class FileBuilder:
             e = self._create(self._next_id, parent_id, path, exif_tool, fstat=fstat)
             entries.append(e)
             if stat.S_ISDIR(e.st_mode):
-                for entry in reversed(sorted(os.scandir(path), key=lambda e: e.name)):
-                    to_check.append((self._next_id, entry.path, entry.stat()))
+                with os.scandir(path) as it:
+                    for entry in reversed(sorted(it, key=lambda e: e.name)):
+                        to_check.append((self._next_id, entry.path, entry.stat()))
             self._next_id += 1
 
         self._storage.replace_entries(entries)

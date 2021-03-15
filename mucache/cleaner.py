@@ -68,13 +68,14 @@ class Cleaner:
         return used_bytes
 
     def _remove_uncached_cache_files(self):
-        for entry in os.scandir(self._path):
-            if entry.is_file() and not self._is_valid_cache_file(entry):
-                logger.debug(f"Removing the cache file '{entry.path}'")
-                try:
-                    os.remove(entry.path)
-                except:
-                    logger.exception(f"Error removing the cached file {id}")
+        with os.scandir(self._path) as it:
+            for entry in it:
+                if entry.is_file() and not self._is_valid_cache_file(entry):
+                    logger.debug(f"Removing the cache file '{entry.path}'")
+                    try:
+                        os.remove(entry.path)
+                    except:
+                        logger.exception(f"Error removing the cached file {id}")
 
     def _is_valid_cache_file(self, entry):
         try:
