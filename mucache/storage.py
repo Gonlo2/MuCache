@@ -207,6 +207,6 @@ class Storage:
         return max(self._db.read_one(query)[0] or 0, 0)
 
     def purge(self):
-        self._db.write('DELETE TABLE filesystem')
+        self._db.write('DROP TABLE filesystem')
         self._db.write('VACUUM')
         self.setup()
