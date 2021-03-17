@@ -20,11 +20,15 @@ class FileChunks:
             a += 1
 
     def cache_next_chunk(self, src_fd, dst_fd):
-        if self._next_chunk < self._num_chunks:
-            self._copy_chunk(src_fd, dst_fd, self._next_chunk)
-            self._cached_chunks.discard(self._next_chunk)
+        while self._next_chunk < self._num_chunks:
+            chunk_to_cache = self._next_chunk
             self._next_chunk += 1
-        return self._next_chunk < self._num_chunks
+            if chunk_to_cache in self._cached_chunks:
+                self._cached_chunks.discard(chunk_to_cache)
+            else:
+                self._copy_chunk(src_fd, dst_fd, chunk_to_cache)
+                return self._next_chunk < self._num_chunks
+        return False
 
     def _copy_chunk(self, src_fd, dst_fd, i):
         src_fd.seek(i << self._chunk_size_bits)

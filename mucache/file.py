@@ -33,15 +33,8 @@ class File(ReadStrategy):
         self._passthrow_limit = max(16 * MB, min(0.15 * size, 64 * MB))
         self._lock = Lock()
         self._rc = 0
-        self._chunks = None
         self._bytes_readen = BytesReaden()
         self._strategy = None
-
-        if self._state == State.CACHING:
-            self._setup_chunks()
-
-    def _setup_chunks(self):
-        self._chunks = FileChunks(self._size)
 
     def size(self):
         return self._size
@@ -78,7 +71,7 @@ class File(ReadStrategy):
         return CacheReadStrategy(
             open(self._src_path, 'rb'),
             open(self._dst_path, 'rb+'),
-            self._chunks,
+            FileChunks(self._size),
         )
 
     def _open_cached(self):
@@ -103,7 +96,6 @@ class File(ReadStrategy):
                 self._change_state_to_caching()
             if self._state == State.CACHING:
                 if not self._strategy.cache_next_chunk():
-                    self._chunks = None
                     self._close()
                     self._state = State.CACHED
                     self._open()
@@ -112,7 +104,6 @@ class File(ReadStrategy):
             return True
 
     def _change_state_to_caching(self):
-        self._setup_chunks()
         self._close()
         self._state = State.CACHING
         self._open()
