@@ -100,8 +100,8 @@ class FileBuilder:
             fstat = os.stat(path)
         if stat.S_ISREG(fstat.st_mode):
             data['duration'] = exif_tool.get_tag('Duration', path)
-
         for key in ST_KEYS:
             data[key] = getattr(fstat, key)
+        data['st_ino'] = id
 
         return Entry(**data)
