@@ -134,7 +134,7 @@ class Storage:
             return None
         return [x for x, in res]
 
-    def get_next_files_to_cache(self, path, max_duration):
+    def get_next_files_to_cache(self, path, max_duration, max_size):
         query = ("SELECT id, path, state, duration, st_size "
                  "FROM filesystem "
                  "WHERE path >= ? "
@@ -144,14 +144,16 @@ class Storage:
 
         res = []
         acc_duration = 0
+        acc_size = 0
         for id, path, state, duration, size in rows:
-            if duration is not None:
-                if state == State.NO_CACHED:
-                    res.append((id, path, size))
-
-                acc_duration += duration
-                if acc_duration > max_duration:
-                    break
+            if duration is None:
+                continue
+            acc_duration += duration
+            acc_size += size
+            if res and ((acc_duration > max_duration) or (acc_size > max_size)):
+                break
+            if state == State.NO_CACHED:
+                res.append((id, path, size))
         return res
 
     def get_next_file_path_state(self, path):

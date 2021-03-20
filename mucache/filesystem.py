@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 class Filesystem:
-    def __init__(self, src_path, dst_path, storage, power_manager, cleaner):
+    def __init__(self, *, src_path, dst_path, storage, power_manager,
+                 cleaner, prefetch_sec, prefetch_bytes):
         self._src_path = src_path
         self._dst_path = dst_path
         self._storage = storage
         self._power_manager = power_manager
         self._cleaner = cleaner
+        self._prefetch_sec = prefetch_sec
+        self._prefetch_bytes = prefetch_bytes
         self._lock = Lock()
         self._files_by_id = {}
         self._loop_queue = Queue()
@@ -57,7 +60,7 @@ class Filesystem:
                 self._power_manager
             )
             self._files_by_id[id] = f
-            if state == State.CACHED:
+            if state == State.CACHED and size < self._prefetch_bytes:
                 next_path, next_state = self._storage.get_next_file_path_state(path)
                 if next_state == State.NO_CACHED:
                     self._cache_next_files(next_path)
@@ -78,7 +81,8 @@ class Filesystem:
     def _cache_next_files(self, path):
         to_cache = self._storage.get_next_files_to_cache(
             path,
-            240 * 60 # TODO
+            self._prefetch_sec,
+            self._prefetch_bytes,
         )
         ts = int(time.time())
         for i, (id, path, size) in enumerate(to_cache):

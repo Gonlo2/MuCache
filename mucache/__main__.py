@@ -17,7 +17,7 @@ from .types import State
 logger = logging.getLogger(__name__)
 
 
-GB = 1024 * 1024 * 1024
+GIB = 1024 * 1024 * 1024
 
 
 def create_arg_parser():
@@ -40,9 +40,11 @@ def create_arg_parser():
     p.add_argument('--db-path', default='db.sqlite',
                    help='path of the sqlite database')
     p.add_argument('--cache-limit', default=180, type=int,
-                   help='cache size limit in gigabytes')
-    p.add_argument('--min-prefetch', default=240, type=int,
-                   help='number of minutes to prefetch')
+                   help='cache size limit in gibibytes')
+    p.add_argument('--prefetch-min', default=180, type=int,
+                   help='maximum number of minutes to prefetch')
+    p.add_argument('--prefetch-gib', default=10, type=int,
+                   help='maximum number of gibibytes to prefetch')
     p.add_argument('--rebuild', action='store_true',
                    help='purge the DB and index the files')
     p.add_argument('--log-level', default='INFO',
@@ -106,25 +108,22 @@ def main():
     reinotify_server.start()
 
     logger.debug("Starting cleaner")
-    cleaner = Cleaner(args.cache_path, storage, args.cache_limit * GB)
+    cleaner = Cleaner(args.cache_path, storage, args.cache_limit * GIB)
     cleaner.start()
 
     logger.debug("Starting file manager")
-    filesystem = Filesystem(args.src_path, args.cache_path, storage, pm, cleaner)
-    filesystem.start()
+    fs = Filesystem(src_path=args.src_path, dst_path=args.cache_path,
+                    storage=storage, power_manager=pm, cleaner=cleaner,
+                    prefetch_sec=args.prefetch_min * 60,
+                    prefetch_bytes=args.prefetch_gib * GIB)
+    fs.start()
 
     try:
         logger.info("Starting FUSE")
-        FUSE(
-            FuseWrapper(filesystem),
-            args.fuse_path,
-            nothreads=False,
-            foreground=True,
-            allow_other=True,
-            ro=True,
-        )
+        FUSE(FuseWrapper(fs), args.fuse_path, nothreads=False,
+             foreground=True, allow_other=True, ro=True)
     finally:
-        filesystem.stop()
+        fs.stop()
         cleaner.stop()
 
 
