@@ -39,6 +39,9 @@ class File(ReadStrategy):
     def size(self):
         return self._size
 
+    def state(self):
+        return self._state
+
     def open(self):
         with self._lock:
             if self._rc == 0:
