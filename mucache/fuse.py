@@ -27,7 +27,7 @@ class FuseWrapper(Operations):
 
     def open(self, path, flags):
         logger.debug('Opening the file "%s"', path)
-        _, fh = self._fs.open(path)
+        fh = self._fs.open(path)
         if fh is None:
             raise FuseOSError(errno.ENOENT)
         return fh

@@ -42,17 +42,21 @@ class Filesystem:
 
     def open(self, path):
         with self._lock:
-            return self._open_locked(path)
+            f, fid = self._touch_file(path)
+            if f is None:
+                return None
+            f.open()
+            return fid
 
-    def _open_locked(self, path):
+    def _touch_file(self, path):
         fid, state, size = self._storage.get_id_state_size(path)
         if fid is None:
             return (None, None)
-        f = self._open(fid, path, state, size)
+        f = self._get_file(fid, path, state, size)
         self._storage.set_last_access_ts(fid, int(time.time()))
         return (f, fid)
 
-    def _open(self, id, path, state, size):
+    def _get_file(self, id, path, state, size):
         f = self._files_by_id.get(id)
         if f is None:
             f = File(
@@ -67,7 +71,6 @@ class Filesystem:
                 next_path, next_state = self._storage.get_next_file_path_state(path)
                 if next_state == State.NO_CACHED:
                     self._cache_next_files(next_path)
-        f.open()
         return f
 
     def read(self, path, fh, length, offset):
@@ -116,20 +119,17 @@ class Filesystem:
             if path is None:
                 break
             with self._lock:
-                f, fid = self._open_locked(path)
-                if fid is None:
-                    continue
-                if f.state() != State.CACHING:
+                f, fid = self._touch_file(path)
+            if f is not None:
+                f.open()
+                self._cleaner.to_add(f.size())
+                logger.debug(f"Caching the file '{path}' with id {fid}")
+                while f.cache_next_chunk():
+                    pass
+                logger.debug(f"Cached the file '{path}' with id {fid}")
+                with self._lock:
+                    self._storage.set_state(fid, State.CACHING, State.CACHED)
                     self._close(f, fid)
-                    continue
-            self._cleaner.to_add(f.size())
-            logger.debug(f"Caching the file '{path}' with id {fid}")
-            while f.cache_next_chunk():
-                pass
-            logger.debug(f"Cached the file '{path}' with id {fid}")
-            with self._lock:
-                self._storage.set_state(fid, State.CACHING, State.CACHED)
-                self._close(f, fid)
 
     def stop(self):
         self._loop_queue.put(None)
