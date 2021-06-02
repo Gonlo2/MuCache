@@ -45,8 +45,8 @@ class Filesystem:
             f, fid = self._touch_file(path)
             if f is None:
                 return None
-            f.open()
-            return fid
+        f.open()
+        return fid
 
     def _touch_file(self, path):
         fid, state, size = self._storage.get_id_state_size(path)
